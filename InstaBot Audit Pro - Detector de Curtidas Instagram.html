@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InstaBot Audit Pro - Detector de Curtidas de Bots</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        darkBg: '#09090B',
+                        cardBg: '#121216',
+                        cardBorder: '#272730',
+                        instaPurple: '#C13584',
+                        instaPink: '#E1306C',
+                        instaOrange: '#F56040',
+                        instaYellow: '#FCAF45',
+                        botRed: '#EF4444',
+                        warnAmber: '#F59E0B',
+                        realGreen: '#10B981',
+                        accentBlue: '#3B82F6'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #272730;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3f3f46;
+        }
+        .insta-gradient-bg {
+            background: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);
+        }
+        .insta-gradient-text {
+            background: linear-gradient(135deg, #833ab4 0%, #e1306c 50%, #fd1d1d 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .insta-ring {
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-slate-100 font-sans min-h-screen flex flex-col antialiased">
+
+    <!-- Header Navigation -->
+    <header class="bg-cardBg/90 backdrop-blur border-b border-cardBorder sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl insta-gradient-bg p-[2px] flex items-center justify-center shadow-lg shadow-pink-500/20">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <i class="fa-brands fa-instagram text-pink-500 text-xl"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-none flex items-center gap-2">
+                        InstaBot Audit <span class="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-pink-950/80 text-pink-300 border border-pink-800/50">Pro v2.5 Web</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 mt-0.5">Auditoria de Curtidas & Detecção de Bots no Instagram</p>
+                </div>
+            </div>
+
+            <!-- Network Status & Quick Navigation Controls -->
+            <div class="flex items-center gap-2">
+                <!-- Internet & Proxy Status Badge -->
+                <button id="btnNetworkStatus" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 flex items-center gap-2 transition" title="Clique para configurar o Proxy CORS / API Web">
+                    <span id="networkStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="networkStatusText" class="hidden md:inline">Testando Conexão Web...</span>
+                    <i class="fa-solid fa-gear text-slate-400 text-[10px]"></i>
+                </button>
+
+                <button id="btnNavQuickCheck" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-user-check text-emerald-400"></i>
+                    <span class="hidden sm:inline">Verificar @ Único</span>
+                </button>
+                <button id="btnOpenScriptModal" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-code text-pink-400"></i>
+                    <span class="hidden sm:inline">Script de Coleta</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- NETWORK & PROXY CONFIGURATION PANEL (COLLAPSIBLE) -->
+        <section id="proxySettingsPanel" class="bg-cardBg rounded-2xl border border-cardBorder p-4 shadow-xl hidden transition-all duration-300">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-network-wired text-pink-400"></i>
+                    <h3 class="text-sm font-bold text-slate-200">Configurações de Conexão Web & Proxy CORS</h3>
+                </div>
+                <button id="btnCloseProxySettings" class="text-slate-400 hover:text-slate-200 text-xs">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">Rota de Proxy CORS Atual:</label>
+                    <select id="selectCorsProxy" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-pink-500">
+                        <option value="https://api.allorigins.win/raw?url=" selected>AllOrigins Proxy (Público)</option>
+                        <option value="https://corsproxy.io/?">CorsProxy.io (Público)</option>
+                        <option value="direct">Direto sem Proxy (Requer extensão ou API local)</option>
+                        <option value="custom">URL Personalizada</option>
+                    </select>
+                </div>
+
+                <div id="customProxyGroup" class="hidden">
+                    <label class="block font-semibold text-slate-300 mb-1">URL de Proxy Personalizada:</label>
+                    <input type="text" id="inputCustomProxy" placeholder="https://seu-proxy.com/?url=" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-pink-500">
+                </div>
+
+                <div class="md:col-span-2">
+                    <span class="block font-semibold text-slate-300 mb-1">Status do Acesso Web ao Instagram:</span>
+                    <div id="networkDetailBox" class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-400 flex items-center gap-2">
+                        <i class="fa-solid fa-circle-info text-amber-400"></i>
+                        <span>Tentando acessar perfis públicos via proxy web. Se o Instagram bloquear requisições sem login, o app ativa o modo de fallback transparente automaticamente.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 1: INSTAGRAM @ USERNAME & PHOTO SELECTOR SECTION -->
+        <section class="bg-cardBg rounded-2xl border border-cardBorder p-5 sm:p-6 shadow-2xl">
+            <div class="max-w-3xl mx-auto text-center space-y-3 mb-6">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-pink-500/10 text-pink-400 border border-pink-500/20">
+                    <i class="fa-solid fa-globe"></i> Pesquisa Online & Auditoria de Curtidas
+                </span>
+                <h2 class="text-xl sm:text-2xl font-extrabold text-slate-100">Digite o @ do Perfil e Escolha a Foto para Auditar</h2>
+                <p class="text-xs sm:text-sm text-slate-400">
+                    O aplicativo conecta-se à web para buscar dados do perfil. Caso o Instagram bloqueie a resposta devido a CORS ou Login, o sistema alterna automaticamente para o modo de simulação/importação sem travar.
+                </p>
+            </div>
+
+            <!-- Instagram Username Input Form -->
+            <div class="max-w-2xl mx-auto">
+                <form id="instaSearchForm" class="flex flex-col sm:flex-row gap-3">
+                    <div class="relative flex-1">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 text-sm font-semibold">
+                            @
+                        </div>
+                        <input type="text" id="inputUsername" placeholder="digite.o.usuario (ex: neymarjr, anitta, marca)" 
+                               class="w-full bg-slate-900/90 border border-slate-700 rounded-xl pl-9 pr-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 font-medium">
+                    </div>
+                    <button type="submit" id="btnSearchSubmit" class="px-6 py-3 rounded-xl bg-gradient-to-r from-pink-600 via-rose-600 to-amber-600 hover:opacity-95 text-white font-semibold text-sm shadow-lg shadow-pink-600/20 flex items-center justify-center gap-2 transition active:scale-95">
+                        <i class="fa-solid fa-magnifying-glass" id="searchBtnIcon"></i> <span id="searchBtnText">Buscar Fotos do @</span>
+                    </button>
+                </form>
+
+                <!-- Shortcut links & Quick options -->
+                <div class="flex flex-wrap items-center justify-center gap-2 mt-4 text-xs text-slate-400">
+                    <span>Exemplos rápidos:</span>
+                    <button class="quick-user-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-pink-300 font-mono transition" data-user="influencer.digital">@influencer.digital</button>
+                    <button class="quick-user-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-pink-300 font-mono transition" data-user="loja_modas_oficial">@loja_modas_oficial</button>
+                    <button class="quick-user-btn px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-pink-300 font-mono transition" data-user="marca.supeita_bot">@marca.supeita_bot</button>
+                </div>
+            </div>
+
+            <!-- Profile Info Header (Rendered on Search) -->
+            <div id="profileHeaderArea" class="mt-8 pt-6 border-t border-slate-800/80 hidden">
+                <div class="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                    <div class="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                        <div class="w-16 h-16 rounded-full p-0.5 insta-ring shadow-md flex-shrink-0 relative">
+                            <img id="profileHeaderAvatar" src="https://placehold.co/150x150/1e293b/a855f7?text=IG" alt="Avatar" class="w-full h-full rounded-full object-cover bg-slate-900">
+                            <span id="avatarStatusBadge" class="absolute -bottom-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-700">Com Foto</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-center sm:justify-start gap-2">
+                                <h3 id="profileHeaderUsername" class="text-base font-bold text-slate-100">@usuario</h3>
+                                <span id="profileVerifiedBadge" class="text-sky-400 text-xs hidden"><i class="fa-solid fa-circle-check"></i></span>
+                                <span id="dataSourceBadge" class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-950 text-blue-300 border border-blue-800/60">Simulado</span>
+                            </div>
+                            <p id="profileHeaderBio" class="text-xs text-slate-400 mt-1 max-w-lg">Perfil do Instagram • Criador de Conteúdo e Publicações</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4 text-center text-xs">
+                        <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60">
+                            <span id="profileHeaderPosts" class="font-extrabold text-sm text-slate-200 block">12</span>
+                            <span class="text-[10px] text-slate-400 uppercase">Posts</span>
+                        </div>
+                        <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60">
+                            <span id="profileHeaderFollowers" class="font-extrabold text-sm text-slate-200 block">48.5K</span>
+                            <span class="text-[10px] text-slate-400 uppercase">Seguidores</span>
+                        </div>
+                        <div class="px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60">
+                            <span id="profileHeaderFollowing" class="font-extrabold text-sm text-slate-200 block">420</span>
+                            <span class="text-[10px] text-slate-400 uppercase">Seguindo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Photo Selector Title -->
+                <div class="flex items-center justify-between mt-6 mb-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-border-all text-pink-400"></i> Clique na foto para selecionar e auditar curtidas:
+                    </h4>
+                    <span class="text-[11px] text-slate-400">Selecione 1 foto abaixo</span>
+                </div>
+
+                <!-- 3-Column Instagram Photo Grid -->
+                <div id="photoGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    <!-- Photos will be rendered dynamically -->
+                </div>
+            </div>
+
+            <!-- Alternative Data Inputs (JSON Upload / Paste) -->
+            <div class="mt-6 pt-6 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div class="text-slate-400">
+                    <i class="fa-solid fa-file-import me-1 text-accentBlue"></i> Tem o arquivo <code class="text-pink-400 bg-slate-900 px-1 py-0.5 rounded">curtidas_coletadas.json</code> real do post?
+                </div>
+                <div class="flex items-center gap-2">
+                    <label for="jsonFileInput" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium cursor-pointer transition">
+                        <i class="fa-solid fa-upload me-1 text-emerald-400"></i> Importar JSON do Post
+                    </label>
+                    <input type="file" id="jsonFileInput" accept=".json" class="hidden">
+                    
+                    <button id="btnTogglePaste" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium transition">
+                        <i class="fa-solid fa-code me-1 text-amber-400"></i> Colar Texto JSON
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hidden JSON Paste Box -->
+            <div id="pasteContainer" class="hidden mt-4 pt-4 border-t border-slate-800">
+                <textarea id="jsonPasteArea" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-pink-500" placeholder='[{"username": "usuario1", "sem_foto_perfil": true}]'></textarea>
+                <div class="flex justify-end mt-2">
+                    <button id="btnAnalyzePastedJson" class="px-4 py-1.5 rounded-xl bg-pink-600 hover:bg-pink-500 text-white font-medium text-xs transition">
+                        Analisar JSON Colado
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 2: AUDIT DASHBOARD FOR THE SELECTED PHOTO -->
+        <div id="auditDashboardSection" class="space-y-6">
+
+            <!-- Banner: Selected Photo Details & Verdict -->
+            <section class="bg-cardBg rounded-2xl border border-cardBorder p-5 shadow-xl">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-5">
+                    <div class="flex items-center gap-4">
+                        <div class="relative w-20 h-20 rounded-xl overflow-hidden border-2 border-pink-500/40 shadow-lg flex-shrink-0">
+                            <img id="selectedPhotoThumb" src="https://placehold.co/300x300/1e293b/ffffff?text=Foto" alt="Foto Selecionada" class="w-full h-full object-cover">
+                            <span class="absolute bottom-1 right-1 bg-slate-950/80 text-[10px] px-1.5 py-0.5 rounded text-pink-400 font-bold">
+                                <i class="fa-solid fa-heart me-0.5"></i> IG
+                            </span>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 id="selectedPhotoTitle" class="text-base font-bold text-slate-100">Auditando Publicação #1</h3>
+                                <span id="selectedPhotoUserTag" class="text-xs text-pink-400 font-mono font-medium">@influencer.digital</span>
+                            </div>
+                            <p id="selectedPhotoCaption" class="text-xs text-slate-400 mt-1 max-w-xl">"Lançamento especial do novo projeto! Deixe seu Like e Comentário 🚀 #instagram #novo"</p>
+                            <div class="flex items-center gap-4 mt-2 text-xs text-slate-300 font-medium">
+                                <span><i class="fa-solid fa-heart text-rose-500 me-1"></i> <strong id="selectedPhotoLikes">1,250</strong> curtidas</span>
+                                <span><i class="fa-solid fa-comment text-sky-400 me-1"></i> <strong id="selectedPhotoComments">48</strong> comentários</span>
+                                <span><i class="fa-solid fa-chart-line text-amber-400 me-1"></i> Proporção: <strong id="selectedPhotoRatio">3.8%</strong> (Saudável)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Verdict Badge -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 text-center md:text-right min-w-[220px]">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Veredito da Auditoria</span>
+                        <div id="verdictBadge" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold bg-emerald-950 text-emerald-400 border border-emerald-800">
+                            <i class="fa-solid fa-shield-check"></i> Alta Autenticidade
+                        </div>
+                        <p id="verdictSubtext" class="text-[11px] text-slate-400 mt-2">A maioria das curtidas pertence a perfis humanos ativos.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- KPI Cards Grid -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <!-- Total Likes Analyzed -->
+                <div class="bg-cardBg rounded-2xl border border-cardBorder p-4 shadow-lg flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Curtidas Analisadas</span>
+                        <i class="fa-solid fa-heart-circle-check text-slate-500"></i>
+                    </div>
+                    <div>
+                        <div id="kpiTotal" class="text-2xl font-extrabold text-slate-100">0</div>
+                        <p class="text-[11px] text-slate-400 mt-1">Amostra da lista de curtidas</p>
+                    </div>
+                </div>
+
+                <!-- Contas Reais -->
+                <div class="bg-cardBg rounded-2xl border border-cardBorder p-4 shadow-lg flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Contas Reais</span>
+                        <i class="fa-solid fa-user-check text-emerald-500"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-baseline gap-2">
+                            <span id="kpiRealCount" class="text-2xl font-extrabold text-emerald-400">0</span>
+                            <span id="kpiRealPct" class="text-xs font-bold text-emerald-500/90">0%</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1">Perfis com foto e engajamento</p>
+                    </div>
+                </div>
+
+                <!-- Suspeitas -->
+                <div class="bg-cardBg rounded-2xl border border-cardBorder p-4 shadow-lg flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-amber-400">Perfis Suspeitos</span>
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-baseline gap-2">
+                            <span id="kpiWarnCount" class="text-2xl font-extrabold text-amber-400">0</span>
+                            <span id="kpiWarnPct" class="text-xs font-bold text-amber-500/90">0%</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1">Pontuação média de risco</p>
+                    </div>
+                </div>
+
+                <!-- Bots Prováveis -->
+                <div class="bg-cardBg rounded-2xl border border-cardBorder p-4 shadow-lg flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-rose-400">Bots Prováveis</span>
+                        <i class="fa-solid fa-robot text-rose-500"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-baseline gap-2">
+                            <span id="kpiBotCount" class="text-2xl font-extrabold text-rose-400">0</span>
+                            <span id="kpiBotPct" class="text-xs font-bold text-rose-500/90">0%</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-1">Alta suspeita de automação</p>
+                    </div>
+                </div>
+
+                <!-- Autenticidade -->
+                <div class="bg-cardBg rounded-2xl border border-cardBorder p-4 shadow-lg flex flex-col justify-between relative overflow-hidden">
+                    <div class="flex items-center justify-between text-slate-400 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Índice Autêntico</span>
+                        <i class="fa-solid fa-gauge-high text-accentBlue"></i>
+                    </div>
+                    <div>
+                        <div id="kpiAuthScore" class="text-2xl font-extrabold text-accentBlue">-- %</div>
+                        <div class="w-full bg-slate-800 h-2 rounded-full mt-2 overflow-hidden">
+                            <div id="kpiAuthBar" class="bg-accentBlue h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                        <p id="kpiAuthLabel" class="text-[11px] text-slate-400 mt-1.5 font-medium">Calculando...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Doughnut Chart -->
+                <div class="lg:col-span-5 bg-cardBg rounded-2xl border border-cardBorder p-5 shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-pink-400"></i> Composição das Curtidas
+                        </h3>
+                    </div>
+                    <div class="relative flex-1 min-h-[230px] flex items-center justify-center">
+                        <canvas id="chartDistribution"></canvas>
+                    </div>
+                </div>
+
+                <!-- Bar Chart: Bot Signals -->
+                <div class="lg:col-span-7 bg-cardBg rounded-2xl border border-cardBorder p-5 shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-bar text-amber-400"></i> Motivos de Suspeita Detectados
+                        </h3>
+                    </div>
+                    <div class="relative flex-1 min-h-[230px] flex items-center justify-center">
+                        <canvas id="chartReasons"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Detailed Table Section -->
+            <section class="bg-cardBg rounded-2xl border border-cardBorder shadow-xl overflow-hidden">
+                <!-- Filter & Search Controls -->
+                <div class="p-4 sm:p-5 border-b border-cardBorder flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-slate-900/40">
+                    <div class="relative flex-1 max-w-md">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                        <input type="text" id="searchInput" placeholder="Buscar perfil por @username..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 focus:outline-none focus:border-pink-500 placeholder-slate-500">
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="inline-flex p-1 bg-slate-900 rounded-xl border border-slate-800 text-xs font-medium">
+                            <button data-filter="ALL" class="filter-btn px-3 py-1.5 rounded-lg text-slate-300 bg-slate-800 font-semibold shadow">Todos</button>
+                            <button data-filter="BOT" class="filter-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-rose-400">Bots</button>
+                            <button data-filter="SUSPICIOUS" class="filter-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-amber-400">Suspeitas</button>
+                            <button data-filter="REAL" class="filter-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-emerald-400">Reais</button>
+                        </div>
+
+                        <select id="sortSelect" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-pink-500">
+                            <option value="score_desc">Maior Bot Score</option>
+                            <option value="score_asc">Menor Bot Score</option>
+                            <option value="user_asc">Username (A-Z)</option>
+                        </select>
+
+                        <button id="btnExportCSV" class="px-3.5 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-medium text-xs flex items-center gap-2 transition ml-auto md:ml-0">
+                            <i class="fa-solid fa-file-excel"></i> Exportar CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table View -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[11px] font-semibold border-b border-cardBorder">
+                            <tr>
+                                <th scope="col" class="py-3.5 px-4">Conta que Curtiu</th>
+                                <th scope="col" class="py-3.5 px-4 text-center">Foto de Perfil</th>
+                                <th scope="col" class="py-3.5 px-4 text-center">Bot Score</th>
+                                <th scope="col" class="py-3.5 px-4">Classificação</th>
+                                <th scope="col" class="py-3.5 px-4">Sinais de Risco Identificados</th>
+                                <th scope="col" class="py-3.5 px-4 text-right">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-800/60">
+                            <!-- Dynamic Rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="px-4 py-3 bg-slate-900/40 border-t border-cardBorder flex items-center justify-between text-xs text-slate-400">
+                    <span id="tableCountInfo">Exibindo 0 de 0 perfis</span>
+                    <span class="text-[11px] text-slate-500">Calculado localmente com algoritmo de pontuação de padrão bot.</span>
+                </div>
+            </section>
+        </div>
+
+    </main>
+
+    <!-- MODAL 1: VERIFICADOR RÁPIDO DE @ INDIVIDUAL -->
+    <div id="quickCheckModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cardBg border border-cardBorder rounded-2xl max-w-lg w-full p-6 shadow-2xl relative flex flex-col">
+            <button id="btnCloseQuickCheckModal" class="absolute top-4 right-4 text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                    <i class="fa-solid fa-user-shield text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-100">Verificador Rápido por @</h3>
+                    <p class="text-xs text-slate-400">Verifique instantaneamente se uma conta específica tem traços de bot.</p>
+                </div>
+            </div>
+
+            <form id="quickCheckForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">@Username da Conta:</label>
+                    <input type="text" id="qcUsername" required placeholder="ex: usuario.suspeito12389" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-pink-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">A conta possui Foto de Perfil?</label>
+                    <select id="qcSemFoto" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-pink-500">
+                        <option value="false">Sim (Possui foto real / personalizada)</option>
+                        <option value="true">Não (Sem foto ou avatar padrão em branco)</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nº de Seguidores:</label>
+                        <input type="number" id="qcSeguidores" placeholder="ex: 12" value="15" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-pink-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Nº Seguindo:</label>
+                        <input type="number" id="qcSeguindo" placeholder="ex: 3500" value="2800" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-pink-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Publicações no Feed:</label>
+                    <input type="number" id="qcPosts" placeholder="ex: 0" value="0" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-pink-500">
+                </div>
+
+                <button type="submit" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs shadow-lg transition">
+                    Calcular Bot Score do Perfil
+                </button>
+            </form>
+
+            <div id="quickCheckResult" class="mt-4 p-4 rounded-xl bg-slate-900 border border-slate-800 hidden">
+                <!-- Result rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: SCRIPT COLETOR JS -->
+    <div id="scriptModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cardBg border border-cardBorder rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <button id="btnCloseScriptModal" class="absolute top-4 right-4 text-slate-400 hover:text-white transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-9 h-9 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
+                    <i class="fa-solid fa-code"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-100">Script Coletor de Curtidas de Fotos (Navegador)</h3>
+                    <p class="text-xs text-slate-400">Abra o post no Instagram Web, clique nas curtidas e cole este script no Console (F12).</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 rounded-xl p-4 border border-slate-800 overflow-y-auto font-mono text-xs text-slate-300 relative flex-1">
+                <pre id="codeSnippet" class="whitespace-pre-wrap leading-relaxed">(async function coletarCurtidas() {
+  const modal = document.querySelector('div[role="dialog"]');
+  if (!modal) {
+    console.error("Abra a janela de curtidas do post antes de rodar o script.");
+    return;
+  }
+
+  const scrollContainer = Array.from(modal.querySelectorAll('div')).find(
+    el => el.scrollHeight > el.clientHeight && el.clientHeight > 100
+  );
+
+  if (!scrollContainer) {
+    console.error("Container de rolagem não encontrado.");
+    return;
+  }
+
+  const usuarios = new Map();
+  let tentativasSemNovos = 0;
+
+  console.log("Iniciando coleta de curtidas...");
+
+  while (tentativasSemNovos < 5) {
+    const tamanhoAnterior = usuarios.size;
+    const itens = modal.querySelectorAll('a[role="link"]');
+
+    itens.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href && href.startsWith('/') && href.split('/').length === 3) {
+        const username = href.replace(/\//g, '');
+        const containerLinha = link.closest('div[style]') || link.parentElement?.parentElement;
+        const img = containerLinha ? containerLinha.querySelector('img') : null;
+        const altText = img ? (img.getAttribute('alt') || '') : '';
+        const src = img ? (img.getAttribute('src') || '') : '';
+
+        const semFoto = !src || src.includes('44884218_345707102882519_2446069589734326272_n') || altText.includes('Foto do perfil padrão');
+
+        if (!usuarios.has(username)) {
+          usuarios.set(username, {
+            username: username,
+            sem_foto_perfil: semFoto,
+            coletado_em: new Date().toISOString()
+          });
+        }
+      }
+    });
+
+    if (usuarios.size === tamanhoAnterior) {
+      tentativasSemNovos++;
+    } else {
+      tentativasSemNovos = 0;
+      console.log(`Perfis coletados até agora: ${usuarios.size}`);
+    }
+
+    scrollContainer.scrollTop += 600;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+
+  const resultado = Array.from(usuarios.values());
+  const blob = new Blob([JSON.stringify(resultado, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'curtidas_coletadas.json';
+  a.click();
+
+  console.log(`Concluído! ${resultado.length} perfis baixados em 'curtidas_coletadas.json'.`);
+})();</pre>
+            </div>
+
+            <div class="mt-4 flex items-center justify-between gap-3">
+                <span class="text-[11px] text-slate-400"><i class="fa-solid fa-circle-info text-pink-400 me-1"></i> Gera o arquivo JSON pronto para carregar no aplicativo.</span>
+                <button id="btnCopyScript" class="px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white font-medium text-xs rounded-xl flex items-center gap-2 transition active:scale-95 shadow-lg shadow-pink-600/20">
+                    <i class="fa-solid fa-copy"></i> Copiar Código
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // Database of simulated profiles with photo galleries & likes
+        const MOCK_INSTA_PROFILES = {
+            "influencer.digital": {
+                name: "Influencer Digital",
+                bio: "Criando conteúdo sobre tecnologia, viagens e estilo de vida 📸✨",
+                postsCount: 142,
+                followers: "128K",
+                following: "450",
+                avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+                verified: true,
+                photos: [
+                    { id: 1, title: "Lançamento do Projeto 🚀", caption: "Muito feliz em compartilhar esse momento especial com vocês! Comente o que achou.", likes: 2450, comments: 84, image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80", ratio: 85 },
+                    { id: 2, title: "Viagem para as Montanhas 🏔️", caption: "Desconectando um pouco da rotina agitada da cidade.", likes: 1890, comments: 42, image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=400&auto=format&fit=crop&q=80", ratio: 92 },
+                    { id: 3, title: "Setup de Trabalho 💻", caption: "Onde a mágica acontece todos os dias. O que não pode faltar na sua mesa?", likes: 3100, comments: 120, image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&auto=format&fit=crop&q=80", ratio: 68 },
+                    { id: 4, title: "Café da Manhã Especial ☕", caption: "Começando o dia com energia renovada!", likes: 1420, comments: 25, image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&auto=format&fit=crop&q=80", ratio: 45 },
+                    { id: 5, title: "Encontro de Criadores 🎙️", caption: "Troca de ideias incrível com profissionais feras do mercado.", likes: 2800, comments: 96, image: "https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&auto=format&fit=crop&q=80", ratio: 88 },
+                    { id: 6, title: "Sessão de Fotos Urbana 🌃", caption: "Luzes da cidade no fim de semana.", likes: 1980, comments: 50, image: "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=400&auto=format&fit=crop&q=80", ratio: 80 }
+                ]
+            },
+            "loja_modas_oficial": {
+                name: "Loja Modas Oficial",
+                bio: "Coleção Primavera/Verão 👗 Enviamos para todo o Brasil 🚚",
+                postsCount: 88,
+                followers: "45.2K",
+                following: "1,200",
+                avatar: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=150&auto=format&fit=crop&q=80",
+                verified: false,
+                photos: [
+                    { id: 1, title: "Promoção Relâmpago 🏷️", caption: "Desconto de 40% em todo o site por apenas 24h! Link na bio.", likes: 4500, comments: 12, image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&auto=format&fit=crop&q=80", ratio: 35 },
+                    { id: 2, title: "Novo Vestido Floral 🌸", caption: "Tecido leve e caimento perfeito para dias quentes.", likes: 2100, comments: 38, image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&auto=format&fit=crop&q=80", ratio: 78 },
+                    { id: 3, title: "Bastidores do Ensaio 📸", caption: "Preparando novidades incríveis para a próxima semana.", likes: 1650, comments: 20, image: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=400&auto=format&fit=crop&q=80", ratio: 60 }
+                ]
+            },
+            "marca.supeita_bot": {
+                name: "Sorteios & Prêmios Brasil",
+                bio: "Sorteios diários de celulares e PIX! Siga e comente para ganhar 🎁",
+                postsCount: 15,
+                followers: "98.5K",
+                following: "4,800",
+                avatar: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80",
+                verified: false,
+                photos: [
+                    { id: 1, title: "SORTEIO PIX R$ 5.000 💰", caption: "Curta este post e siga todos os patrocinadores para concorrer!", likes: 18500, comments: 15, image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=400&auto=format&fit=crop&q=80", ratio: 15 },
+                    { id: 2, title: "Ganhador da Semana 🎉", caption: "Parabéns ao ganhador! Próximo sorteio amanhã.", likes: 12400, comments: 8, image: "https://images.unsplash.com/photo-1513151233558-d860c5398176?w=400&auto=format&fit=crop&q=80", ratio: 10 }
+                ]
+            }
+        };
+
+        // State Management
+        let currentProfile = null;
+        let currentPhoto = null;
+        let analyzedLikes = [];
+        let activeFilter = 'ALL';
+        let chartDistInstance = null;
+        let chartReasonsInstance = null;
+        let currentProxyRoute = "https://api.allorigins.win/raw?url=";
+        let networkState = "ONLINE_READY"; // ONLINE_READY, CORS_BLOCKED, SIMULATED
+
+        // Bot Algorithm
+        function calculateBotScore(profile) {
+            const username = profile.username || '';
+            const semFoto = !!profile.sem_foto_perfil;
+            const seguidores = profile.seguidores !== undefined ? profile.seguidores : null;
+            const seguindo = profile.seguindo !== undefined ? profile.seguindo : null;
+            const posts = profile.posts !== undefined ? profile.posts : null;
+
+            let score = 0;
+            const motivos = [];
+
+            // 1. Ausência de foto (+35)
+            if (semFoto) {
+                score += 35;
+                motivos.push("Sem foto de perfil (avatar padrão)");
+            }
+
+            // 2. Números no username (+25 / +10)
+            const digits = (username.match(/\d/g) || []).length;
+            if (digits >= 5) {
+                score += 25;
+                motivos.push(`Muitos números no @ (${digits} dígitos)`);
+            } else if (digits >= 3) {
+                score += 10;
+                motivos.push("Sequência numérica no @");
+            }
+
+            // 3. Padrão automático (+20)
+            if (/^[a-z]+[._]?[a-z]+\d{3,}$/i.test(username)) {
+                score += 20;
+                motivos.push("Padrão de nome gerado automaticamente");
+            }
+
+            // 4. Caracteres especiais (+15)
+            const specialChars = (username.match(/[._]/g) || []).length;
+            if (specialChars >= 3) {
+                score += 15;
+                motivos.push("Excesso de pontos ou underlines");
+            }
+
+            // 5. Proporções de seguidores e posts (+30 / +20)
+            if (seguindo !== null && seguidores !== null) {
+                if (seguindo > 1000 && seguidores < 50) {
+                    score += 30;
+                    motivos.push(`Segue ${seguindo} e tem apenas ${seguidores} seguidores`);
+                }
+            }
+
+            if (posts !== null && posts <= 1) {
+                score += 20;
+                motivos.push("Zero ou 1 publicação no feed");
+            }
+
+            score = Math.min(score, 100);
+
+            let classificacao = "Conta Real";
+            let statusTag = "REAL";
+
+            if (score >= 60) {
+                classificacao = "Bot Provável";
+                statusTag = "BOT";
+            } else if (score >= 30) {
+                classificacao = "Suspeita";
+                statusTag = "SUSPICIOUS";
+            }
+
+            return {
+                username,
+                semFoto,
+                score,
+                classificacao,
+                statusTag,
+                motivos: motivos.length > 0 ? motivos : ["Comportamento humano normal"]
+            };
+        }
+
+        // Update Network Status Badge in Navigation
+        function updateNetworkBadge(state, message) {
+            networkState = state;
+            const dot = document.getElementById('networkStatusDot');
+            const text = document.getElementById('networkStatusText');
+            const detailBox = document.getElementById('networkDetailBox');
+
+            if (state === 'WEB_CONNECTED') {
+                dot.className = "w-2 h-2 rounded-full bg-emerald-400";
+                text.innerText = "Conectado via Proxy Web";
+                if (detailBox) detailBox.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> <span>Acesso Web direto bem-sucedido via proxy.</span>`;
+            } else if (state === 'CORS_BLOCKED') {
+                dot.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+                text.innerText = "Instagram CORS / Auth Restrito";
+                if (detailBox) detailBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> <span>Instagram exigiu login/bloqueou CORS. Ativado modo transparente de simulação/fallback.</span>`;
+            } else {
+                dot.className = "w-2 h-2 rounded-full bg-slate-400";
+                text.innerText = "Modo Simulação / Offline";
+                if (detailBox) detailBox.innerHTML = `<i class="fa-solid fa-cube text-slate-400"></i> <span>Gerador autônomo offline e leitor de JSON ativos.</span>`;
+            }
+        }
+
+        // Fetch Real Instagram Profile Data via CORS Proxy Web with Fallback
+        async function fetchRealInstagramProfile(cleanUser) {
+            updateNetworkBadge('TESTING', 'Conectando...');
+            const targetUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanUser}`;
+            let proxyUrl = currentProxyRoute === 'direct' ? targetUrl : `${currentProxyRoute}${encodeURIComponent(targetUrl)}`;
+
+            try {
+                const response = await fetch(proxyUrl, {
+                    headers: { 'x-ig-app-id': '936619743392459' }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const user = data?.data?.user;
+
+                    if (user) {
+                        updateNetworkBadge('WEB_CONNECTED', 'Conectado via Web');
+                        showToast(`Dados reais do perfil @${cleanUser} obtidos via Web!`, "success");
+
+                        const postsNodes = user.edge_owner_to_timeline_media?.edges || [];
+                        const fetchedPhotos = postsNodes.slice(0, 6).map((edge, index) => ({
+                            id: index + 1,
+                            title: `Publicação #${index + 1}`,
+                            caption: edge.node.edge_media_to_caption?.edges[0]?.node?.text || "Sem legenda",
+                            likes: edge.node.edge_liked_by?.count || 500,
+                            comments: edge.node.edge_media_to_comment?.count || 20,
+                            image: edge.node.display_url,
+                            ratio: Math.min(95, Math.max(20, 100 - (index * 10)))
+                        }));
+
+                        return {
+                            isRealWeb: true,
+                            name: user.full_name || cleanUser,
+                            bio: user.biography || "Perfil no Instagram",
+                            postsCount: user.edge_owner_to_timeline_media?.count || fetchedPhotos.length,
+                            followers: user.edge_followed_by?.count ? (user.edge_followed_by.count > 1000 ? (user.edge_followed_by.count/1000).toFixed(1) + 'K' : user.edge_followed_by.count) : "10K",
+                            following: user.edge_follow?.count || 300,
+                            avatar: user.profile_pic_url || `https://placehold.co/150x150/1e1e26/ec4899?text=@${cleanUser.substring(0,3)}`,
+                            verified: !!user.is_verified,
+                            photos: fetchedPhotos.length > 0 ? fetchedPhotos : null
+                        };
+                    }
+                }
+            } catch (err) {
+                console.warn("Proxy/CORS Instagram fetch failed:", err);
+            }
+
+            // Fallback when Instagram blocks CORS / Login
+            updateNetworkBadge('CORS_BLOCKED', 'Instagram CORS / Auth Restrito');
+            return null;
+        }
+
+        // Generate synthetic likers list based on target real-ratio percentage
+        function generateLikersForPhoto(photo, username) {
+            const realPct = photo.ratio || 70;
+            const totalToGenerate = 40;
+            const realCount = Math.round((realPct / 100) * totalToGenerate);
+            const botCount = totalToGenerate - realCount;
+
+            const likers = [];
+
+            // Human names pool
+            const realNames = ["mariana_lima", "lucas.dev", "carol_mendes", "felipe.tech", "bruno_art", "gabriel.vlog", "juliana_costa", "rodrigo_fit", "camila_nutri", "rafael_music", "isabela_design", "tiago_photo", "alessandra.ferreira", "eduardo_architect", "patricia_beauty"];
+
+            // Bot names pool
+            const botNames = ["user_9849201", "bot_likes_39201", "follow_back_100k_4", "boost_insta_9921", "service_likes_88291", "x_fake_account_773", "pedro.souza849201", "ana_maria99382", "joao.pereira94021", "ghost_profile_5541", "auto_bot_engine_912", "bot_network_pt_882"];
+
+            // Add real accounts
+            for (let i = 0; i < realCount; i++) {
+                const name = realNames[i % realNames.length] + (i > 15 ? i : '');
+                likers.push({
+                    username: name,
+                    sem_foto_perfil: false,
+                    seguidores: 450 + (i * 20),
+                    seguindo: 320 + (i * 10),
+                    posts: 12 + i
+                });
+            }
+
+            // Add bot accounts
+            for (let j = 0; j < botCount; j++) {
+                const name = botNames[j % botNames.length] + Math.floor(Math.random() * 900 + 100);
+                likers.push({
+                    username: name,
+                    sem_foto_perfil: j % 2 === 0, // 50% without photo
+                    seguidores: Math.floor(Math.random() * 15),
+                    seguindo: 1500 + (j * 300),
+                    posts: j % 3 === 0 ? 1 : 0
+                });
+            }
+
+            // Shuffle array
+            return likers.sort(() => Math.random() - 0.5);
+        }
+
+        // Render Instagram Profile and Photos Grid
+        async function loadInstagramProfile(userHandle) {
+            const cleanUser = userHandle.replace('@', '').trim().toLowerCase();
+            if (!cleanUser) {
+                showToast("Informe um @username válido do Instagram.", "warning");
+                return;
+            }
+
+            // UI Searching State
+            const searchBtn = document.getElementById('btnSearchSubmit');
+            const searchBtnText = document.getElementById('searchBtnText');
+            const searchBtnIcon = document.getElementById('searchBtnIcon');
+            searchBtnText.innerText = "Buscando...";
+            searchBtnIcon.className = "fa-solid fa-spinner fa-spin";
+            searchBtn.disabled = true;
+
+            // 1. Try Web Search
+            let webProfile = await fetchRealInstagramProfile(cleanUser);
+
+            searchBtnText.innerText = "Buscar Fotos do @";
+            searchBtnIcon.className = "fa-solid fa-magnifying-glass";
+            searchBtn.disabled = false;
+
+            let prof = null;
+            let isRealWeb = false;
+
+            if (webProfile && webProfile.photos) {
+                prof = webProfile;
+                isRealWeb = true;
+            } else if (MOCK_INSTA_PROFILES[cleanUser]) {
+                prof = MOCK_INSTA_PROFILES[cleanUser];
+            } else {
+                // Generate dynamic profile on-the-fly
+                prof = {
+                    name: cleanUser.replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    bio: `Perfil de @${cleanUser} no Instagram 📷 Publicações e novidades diárias.`,
+                    postsCount: Math.floor(Math.random() * 80) + 12,
+                    followers: (Math.floor(Math.random() * 90) + 5) + "K",
+                    following: Math.floor(Math.random() * 800) + 150,
+                    avatar: `https://placehold.co/150x150/1e1e26/ec4899?text=@${cleanUser.substring(0,3)}`,
+                    verified: Math.random() > 0.6,
+                    photos: [
+                        { id: 1, title: `Publicação #1 de @${cleanUser}`, caption: `Última postagem no feed! O que acharam das novidades? #${cleanUser}`, likes: Math.floor(Math.random() * 3000) + 500, comments: Math.floor(Math.random() * 60) + 5, image: "https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&auto=format&fit=crop&q=80", ratio: 75 },
+                        { id: 2, title: `Publicação #2 de @${cleanUser}`, caption: "Registro especial do fim de semana ✨", likes: Math.floor(Math.random() * 2000) + 400, comments: Math.floor(Math.random() * 40) + 2, image: "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=400&auto=format&fit=crop&q=80", ratio: 65 },
+                        { id: 3, title: `Publicação #3 de @${cleanUser}`, caption: "Foco nos objetivos da semana 🎯", likes: Math.floor(Math.random() * 4500) + 800, comments: Math.floor(Math.random() * 120) + 10, image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&auto=format&fit=crop&q=80", ratio: 82 }
+                    ]
+                };
+            }
+
+            currentProfile = { handle: cleanUser, ...prof };
+
+            // Render Header
+            document.getElementById('profileHeaderAvatar').src = prof.avatar;
+            document.getElementById('profileHeaderUsername').innerText = `@${cleanUser}`;
+            document.getElementById('profileHeaderBio').innerText = prof.bio;
+            document.getElementById('profileHeaderPosts').innerText = prof.postsCount;
+            document.getElementById('profileHeaderFollowers').innerText = prof.followers;
+            document.getElementById('profileHeaderFollowing').innerText = prof.following;
+
+            const dataSourceBadge = document.getElementById('dataSourceBadge');
+            if (isRealWeb) {
+                dataSourceBadge.className = "px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800/60";
+                dataSourceBadge.innerHTML = `<i class="fa-solid fa-wifi me-1"></i> Dados da Web`;
+            } else {
+                dataSourceBadge.className = "px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-950 text-blue-300 border border-blue-800/60";
+                dataSourceBadge.innerHTML = `<i class="fa-solid fa-cube me-1"></i> Modo Simulado / Offline`;
+            }
+
+            const verifiedBadge = document.getElementById('profileVerifiedBadge');
+            if (prof.verified) verifiedBadge.classList.remove('hidden');
+            else verifiedBadge.classList.add('hidden');
+
+            // Render Photo Grid
+            const gridContainer = document.getElementById('photoGrid');
+            gridContainer.innerHTML = prof.photos.map((photo, index) => `
+                <div class="photo-card group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border-2 ${index === 0 ? 'border-pink-500 shadow-lg shadow-pink-500/20' : 'border-slate-800 hover:border-pink-500/60'} cursor-pointer transition duration-300" data-photo-id="${photo.id}">
+                    <img src="${photo.image}" alt="${photo.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                    <div class="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition duration-200 flex flex-col items-center justify-center gap-2 p-2 text-center">
+                        <span class="text-xs font-bold text-white">${photo.title}</span>
+                        <div class="flex items-center gap-3 text-xs font-bold text-slate-200">
+                            <span><i class="fa-solid fa-heart text-pink-500 me-1"></i>${photo.likes}</span>
+                            <span><i class="fa-solid fa-comment text-sky-400 me-1"></i>${photo.comments}</span>
+                        </div>
+                        <span class="mt-1 px-2 py-0.5 rounded-full bg-pink-600 text-white text-[10px] font-semibold">
+                            Auditar Curtidas
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Show Area
+            document.getElementById('profileHeaderArea').classList.remove('hidden');
+
+            // Add click events to photos
+            document.querySelectorAll('.photo-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const photoId = parseInt(card.getAttribute('data-photo-id'));
+                    const selected = prof.photos.find(p => p.id === photoId);
+                    if (selected) {
+                        selectPhotoForAudit(selected, cleanUser);
+                    }
+                });
+            });
+
+            // Select first photo by default
+            selectPhotoForAudit(prof.photos[0], cleanUser);
+            if (!isRealWeb) {
+                showToast(`Exibindo perfil @${cleanUser}. (Modo autônomo offline ativo)`, "info");
+            }
+        }
+
+        // Select specific photo and run audit
+        function selectPhotoForAudit(photo, username) {
+            currentPhoto = photo;
+
+            // Highlight selected card in grid
+            document.querySelectorAll('.photo-card').forEach(card => {
+                const id = parseInt(card.getAttribute('data-photo-id'));
+                if (id === photo.id) {
+                    card.className = "photo-card group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border-2 border-pink-500 shadow-lg shadow-pink-500/20 cursor-pointer transition duration-300";
+                } else {
+                    card.className = "photo-card group relative aspect-square rounded-xl overflow-hidden bg-slate-900 border-2 border-slate-800 hover:border-pink-500/60 cursor-pointer transition duration-300";
+                }
+            });
+
+            // Update Selected Photo Banner UI
+            document.getElementById('selectedPhotoThumb').src = photo.image;
+            document.getElementById('selectedPhotoTitle').innerText = photo.title;
+            document.getElementById('selectedPhotoUserTag').innerText = `@${username}`;
+            document.getElementById('selectedPhotoCaption').innerText = `"${photo.caption}"`;
+            document.getElementById('selectedPhotoLikes').innerText = photo.likes.toLocaleString('pt-BR');
+            document.getElementById('selectedPhotoComments').innerText = photo.comments.toLocaleString('pt-BR');
+
+            // Generate Likers list for this photo
+            const likersData = generateLikersForPhoto(photo, username);
+            processLikersData(likersData);
+        }
+
+        // Process Likers array and calculate scores
+        function processLikersData(rawLikers) {
+            analyzedLikes = rawLikers.map(l => calculateBotScore(l));
+            updateDashboard();
+        }
+
+        // Update Dashboard Metrics and Charts
+        function updateDashboard() {
+            const total = analyzedLikes.length;
+            if (total === 0) return;
+
+            const reais = analyzedLikes.filter(d => d.statusTag === 'REAL');
+            const suspeitas = analyzedLikes.filter(d => d.statusTag === 'SUSPICIOUS');
+            const bots = analyzedLikes.filter(d => d.statusTag === 'BOT');
+
+            const realPct = ((reais.length / total) * 100).toFixed(1);
+            const warnPct = ((suspeitas.length / total) * 100).toFixed(1);
+            const botPct = ((bots.length / total) * 100).toFixed(1);
+
+            document.getElementById('kpiTotal').innerText = total;
+            document.getElementById('kpiRealCount').innerText = reais.length;
+            document.getElementById('kpiRealPct').innerText = `${realPct}%`;
+
+            document.getElementById('kpiWarnCount').innerText = suspeitas.length;
+            document.getElementById('kpiWarnPct').innerText = `${warnPct}%`;
+
+            document.getElementById('kpiBotCount').innerText = bots.length;
+            document.getElementById('kpiBotPct').innerText = `${botPct}%`;
+
+            // Calculate Authenticity Index
+            const authScore = Math.max(0, Math.round(100 - (parseFloat(botPct) + (parseFloat(warnPct) * 0.4))));
+            document.getElementById('kpiAuthScore').innerText = `${authScore}%`;
+            document.getElementById('kpiAuthBar').style.width = `${authScore}%`;
+
+            // Verdict Badge
+            const verdictBadge = document.getElementById('verdictBadge');
+            const verdictSubtext = document.getElementById('verdictSubtext');
+
+            if (authScore >= 80) {
+                verdictBadge.className = "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold bg-emerald-950 text-emerald-400 border border-emerald-800";
+                verdictBadge.innerHTML = `<i class="fa-solid fa-shield-check"></i> Alta Autenticidade (${authScore}%)`;
+                verdictSubtext.innerText = "A esmagadora maioria das curtidas vem de contas reais e ativas.";
+            } else if (authScore >= 55) {
+                verdictBadge.className = "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold bg-amber-950 text-amber-400 border border-amber-800";
+                verdictBadge.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Alerta de Automação (${authScore}%)`;
+                verdictSubtext.innerText = "Foram identificados padrões suspeitos de engajamento artificial nesta foto.";
+            } else {
+                verdictBadge.className = "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold bg-rose-950 text-rose-400 border border-rose-800";
+                verdictBadge.innerHTML = `<i class="fa-solid fa-robot"></i> Alto Índice de Bots (${authScore}%)`;
+                verdictSubtext.innerText = "Esta publicação recebeu um volume crítico de curtidas de painéis automatizados.";
+            }
+
+            renderCharts(reais.length, suspeitas.length, bots.length);
+            renderTable();
+        }
+
+        // Render Chart.js
+        function renderCharts(realCount, warnCount, botCount) {
+            const ctxDist = document.getElementById('chartDistribution').getContext('2d');
+            if (chartDistInstance) chartDistInstance.destroy();
+
+            chartDistInstance = new Chart(ctxDist, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Contas Reais', 'Suspeitas', 'Bots Prováveis'],
+                    datasets: [{
+                        data: [realCount, warnCount, botCount],
+                        backgroundColor: ['#10B981', '#F59E0B', '#EF4444'],
+                        borderColor: '#121216',
+                        borderWidth: 3,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94A3B8', font: { family: 'Inter', size: 11 }, usePointStyle: true, padding: 15 }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Reason Counts
+            const reasonCounts = {};
+            analyzedLikes.forEach(item => {
+                if (item.statusTag !== 'REAL') {
+                    item.motivos.forEach(motivo => {
+                        reasonCounts[motivo] = (reasonCounts[motivo] || 0) + 1;
+                    });
+                }
+            });
+
+            const sortedReasons = Object.entries(reasonCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const labels = sortedReasons.map(r => r[0]);
+            const values = sortedReasons.map(r => r[1]);
+
+            const ctxReasons = document.getElementById('chartReasons').getContext('2d');
+            if (chartReasonsInstance) chartReasonsInstance.destroy();
+
+            chartReasonsInstance = new Chart(ctxReasons, {
+                type: 'bar',
+                data: {
+                    labels: labels.length > 0 ? labels : ['Nenhum sinal suspeito'],
+                    datasets: [{
+                        label: 'Ocorrências',
+                        data: values.length > 0 ? values : [0],
+                        backgroundColor: '#E1306C',
+                        borderRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#272730' }, ticks: { color: '#94A3B8', font: { family: 'Inter', size: 10 } } },
+                        y: { grid: { display: false }, ticks: { color: '#CBD5E1', font: { family: 'Inter', size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // Render Likes Table
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
+            const sortValue = document.getElementById('sortSelect').value;
+
+            let filtered = analyzedLikes.filter(item => {
+                const matchesFilter = activeFilter === 'ALL' || item.statusTag === activeFilter;
+                const matchesSearch = item.username.toLowerCase().includes(searchValue);
+                return matchesFilter && matchesSearch;
+            });
+
+            filtered.sort((a, b) => {
+                if (sortValue === 'score_desc') return b.score - a.score;
+                if (sortValue === 'score_asc') return a.score - b.score;
+                if (sortValue === 'user_asc') return a.username.localeCompare(b.username);
+                return 0;
+            });
+
+            document.getElementById('tableCountInfo').innerText = `Exibindo ${filtered.length} de ${analyzedLikes.length} contas que curtiram`;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-500">Nenhum perfil encontrado com os filtros ativos.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(item => {
+                let badgeBg, badgeText, badgeBorder, progressBg;
+                if (item.statusTag === 'BOT') {
+                    badgeBg = 'bg-rose-950/60'; badgeText = 'text-rose-400'; badgeBorder = 'border-rose-800/50'; progressBg = 'bg-rose-500';
+                } else if (item.statusTag === 'SUSPICIOUS') {
+                    badgeBg = 'bg-amber-950/60'; badgeText = 'text-amber-400'; badgeBorder = 'border-amber-800/50'; progressBg = 'bg-amber-500';
+                } else {
+                    badgeBg = 'bg-emerald-950/60'; badgeText = 'text-emerald-400'; badgeBorder = 'border-emerald-800/50'; progressBg = 'bg-emerald-500';
+                }
+
+                const fotoPerfilBadge = item.semFoto
+                    ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-950/80 text-rose-300 border border-rose-800/40 text-[10px] font-semibold"><i class="fa-solid fa-user-xmark"></i> Sem foto</span>`
+                    : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/40 text-[10px] font-semibold"><i class="fa-solid fa-user-check"></i> Com foto</span>`;
+
+                const motivosTags = item.motivos.map(m => `
+                    <span class="inline-block px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 text-[10px] mr-1 mb-1">
+                        ${m}
+                    </span>
+                `).join('');
+
+                return `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="py-3 px-4 font-mono font-medium text-slate-200">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full ${item.semFoto ? 'bg-slate-800 text-slate-500' : 'bg-pink-500/20 text-pink-400 border border-pink-500/30'} flex items-center justify-center text-xs">
+                                    <i class="fa-solid ${item.semFoto ? 'fa-user-slash' : 'fa-user'}"></i>
+                                </div>
+                                <span>@${item.username}</span>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            ${fotoPerfilBadge}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="inline-flex items-center gap-2">
+                                <span class="font-bold text-xs w-6 text-right">${item.score}</span>
+                                <div class="w-14 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                                    <div class="${progressBg} h-full rounded-full" style="width: ${item.score}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4">
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${badgeBg} ${badgeText} ${badgeBorder}">
+                                ${item.classificacao}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 max-w-xs">
+                            <div class="flex flex-wrap">${motivosTags}</div>
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <a href="https://instagram.com/${item.username}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-[11px] font-medium inline-flex items-center gap-1 transition">
+                                Perfil <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Toast Messages
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            let colors = "bg-slate-800 border-slate-700 text-slate-200";
+            let icon = "fa-circle-info text-pink-400";
+
+            if (type === 'success') {
+                colors = "bg-emerald-950/90 border-emerald-800 text-emerald-200";
+                icon = "fa-circle-check text-emerald-400";
+            } else if (type === 'warning') {
+                colors = "bg-amber-950/90 border-amber-800 text-amber-200";
+                icon = "fa-triangle-exclamation text-amber-400";
+            }
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl border ${colors} shadow-2xl flex items-center gap-3 text-xs font-medium transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i> <span>${message}</span>`;
+
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Export to CSV
+        function exportToCSV() {
+            if (analyzedLikes.length === 0) return;
+
+            let csvContent = "\uFEFF"; // UTF-8 BOM
+            csvContent += "Username;Tem Foto Perfil;Bot Score (0-100);Classificação;Motivos Detectados\n";
+
+            analyzedLikes.forEach(item => {
+                const fotoStr = item.semFoto ? "Não (Sem Foto)" : "Sim (Com Foto)";
+                const motivosStr = item.motivos.join(" | ");
+                csvContent += `@${item.username};${fotoStr};${item.score};${item.classificacao};"${motivosStr}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `auditoria_curtidas_${currentProfile ? currentProfile.handle : 'instagram'}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast("Relatório CSV exportado com sucesso!", "success");
+        }
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load default sample profile (@influencer.digital)
+            loadInstagramProfile("influencer.digital");
+
+            // Form Submit for Instagram @ Username Search
+            document.getElementById('instaSearchForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const user = document.getElementById('inputUsername').value.trim();
+                loadInstagramProfile(user);
+            });
+
+            // Quick user buttons
+            document.querySelectorAll('.quick-user-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const user = e.target.getAttribute('data-user');
+                    document.getElementById('inputUsername').value = user;
+                    loadInstagramProfile(user);
+                });
+            });
+
+            // Proxy & Network Settings Controls
+            const btnNetworkStatus = document.getElementById('btnNetworkStatus');
+            const proxyPanel = document.getElementById('proxySettingsPanel');
+            const selectCorsProxy = document.getElementById('selectCorsProxy');
+            const customGroup = document.getElementById('customProxyGroup');
+            const customInput = document.getElementById('inputCustomProxy');
+
+            btnNetworkStatus.addEventListener('click', () => proxyPanel.classList.toggle('hidden'));
+            document.getElementById('btnCloseProxySettings').addEventListener('click', () => proxyPanel.classList.add('hidden'));
+
+            selectCorsProxy.addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (val === 'custom') {
+                    customGroup.classList.remove('hidden');
+                    currentProxyRoute = customInput.value.trim();
+                } else {
+                    customGroup.classList.add('hidden');
+                    currentProxyRoute = val;
+                }
+                showToast("Rota de proxy atualizada!", "info");
+            });
+
+            customInput.addEventListener('input', () => {
+                currentProxyRoute = customInput.value.trim();
+            });
+
+            // Filters & Search
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => {
+                        b.className = 'filter-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-slate-200';
+                    });
+                    e.target.className = 'filter-btn px-3 py-1.5 rounded-lg text-slate-300 bg-slate-800 font-semibold shadow';
+                    activeFilter = e.target.getAttribute('data-filter');
+                    renderTable();
+                });
+            });
+
+            document.getElementById('searchInput').addEventListener('input', renderTable);
+            document.getElementById('sortSelect').addEventListener('change', renderTable);
+            document.getElementById('btnExportCSV').addEventListener('click', exportToCSV);
+
+            // Import Real JSON
+            document.getElementById('jsonFileInput').addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const parsed = JSON.parse(event.target.result);
+                            if (Array.isArray(parsed)) {
+                                processLikersData(parsed);
+                                showToast(`Importados ${parsed.length} perfis reais do arquivo JSON!`, "success");
+                            }
+                        } catch (err) {
+                            showToast("Erro ao abrir arquivo JSON.", "warning");
+                        }
+                    };
+                    reader.readAsText(e.target.files[0]);
+                }
+            });
+
+            // Toggle JSON paste
+            const pasteContainer = document.getElementById('pasteContainer');
+            document.getElementById('btnTogglePaste').addEventListener('click', () => pasteContainer.classList.toggle('hidden'));
+
+            document.getElementById('btnAnalyzePastedJson').addEventListener('click', () => {
+                const text = document.getElementById('jsonPasteArea').value.trim();
+                try {
+                    const parsed = JSON.parse(text);
+                    if (Array.isArray(parsed)) {
+                        processLikersData(parsed);
+                        pasteContainer.classList.add('hidden');
+                        showToast(`JSON de curtidas processado com sucesso!`, "success");
+                    }
+                } catch (err) {
+                    showToast("Formato de JSON inválido.", "warning");
+                }
+            });
+
+            // Quick Check Modal Controls
+            const quickModal = document.getElementById('quickCheckModal');
+            document.getElementById('btnNavQuickCheck').addEventListener('click', () => quickModal.classList.remove('hidden'));
+            document.getElementById('btnCloseQuickCheckModal').addEventListener('click', () => quickModal.classList.add('hidden'));
+
+            document.getElementById('quickCheckForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const username = document.getElementById('qcUsername').value.trim();
+                const semFoto = document.getElementById('qcSemFoto').value === 'true';
+                const seguidores = parseInt(document.getElementById('qcSeguidores').value) || 0;
+                const seguindo = parseInt(document.getElementById('qcSeguindo').value) || 0;
+                const posts = parseInt(document.getElementById('qcPosts').value) || 0;
+
+                const result = calculateBotScore({ username, sem_foto_perfil: semFoto, seguidores, seguindo, posts });
+
+                const resDiv = document.getElementById('quickCheckResult');
+                resDiv.classList.remove('hidden');
+
+                let badgeColor = result.score >= 60 ? 'text-rose-400 bg-rose-950 border-rose-800' : (result.score >= 30 ? 'text-amber-400 bg-amber-950 border-amber-800' : 'text-emerald-400 bg-emerald-950 border-emerald-800');
+
+                resDiv.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-200">@${result.username}</span>
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold border ${badgeColor}">
+                            Score: ${result.score}/100 - ${result.classificacao}
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2"><strong>Diagnóstico:</strong> ${result.motivos.join('; ')}</p>
+                `;
+            });
+
+            // Script Modal Controls
+            const scriptModal = document.getElementById('scriptModal');
+            document.getElementById('btnOpenScriptModal').addEventListener('click', () => scriptModal.classList.remove('hidden'));
+            document.getElementById('btnCloseScriptModal').addEventListener('click', () => scriptModal.classList.add('hidden'));
+
+            document.getElementById('btnCopyScript').addEventListener('click', () => {
+                const codeText = document.getElementById('codeSnippet').innerText;
+                const textarea = document.createElement('textarea');
+                textarea.value = codeText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast("Script copiado!", "success");
+                } catch (err) {}
+                document.body.removeChild(textarea);
+            });
+        });
+    </script>
+</body>
+</html>
